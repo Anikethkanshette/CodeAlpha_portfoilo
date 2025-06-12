@@ -1,0 +1,184 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Voter Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gradient-to-r from-green-100 to-blue-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-2xl text-center">
+    <h1 class="text-4xl font-extrabold text-green-700 mb-4">Voter Dashboard</h1>
+    <p class="text-gray-600 mb-8 text-lg">Cast your vote and view election info</p>
+    <div class="grid grid-cols-1 gap-6">
+      <button id="voteNowBtn" class="bg-green-600 text-white py-3 px-6 rounded-xl shadow hover:bg-green-700 transition transform hover:scale-105">Vote Now</button>
+      <button id="viewCandidatesBtn" class="bg-blue-600 text-white py-3 px-6 rounded-xl shadow hover:bg-blue-700 transition transform hover:scale-105">View Candidates</button>
+      <button id="viewResultsBtn" class="bg-purple-600 text-white py-3 px-6 rounded-xl shadow hover:bg-purple-700 transition transform hover:scale-105">View Election Results</button>
+      <button id="logoutBtn" class="bg-gray-500 text-white py-3 px-6 rounded-xl shadow hover:bg-gray-600 transition transform hover:scale-105">Logout</button>
+    </div>
+  </div>
+
+  <!-- Firebase Database Setup -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      getDocs,
+      doc,
+      setDoc,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD73Q9crZ5kqVO2ziU_hp5YTyM24eQSziU",
+      authDomain: "smartvote-b605e.firebaseapp.com",
+      projectId: "smartvote-b605e",
+      storageBucket: "smartvote-b605e.firebasestorage.app",
+      messagingSenderId: "1073958321007",
+      appId: "1:1073958321007:web:cfb8c80143746382f6c69a",
+      measurementId: "G-HKP5V78485"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    const currentUserId = localStorage.getItem("currentUser");
+
+    // Vote Now: lets user cast vote for a candidate in an election
+    document.getElementById("voteNowBtn").onclick = async () => {
+      if (!currentUserId) return alert("User not logged in.");
+
+      try {
+        // Get current ongoing election
+        const electionQuery = query(collection(db, "elections"), where("status", "==", "ongoing"));
+        const electionSnapshot = await getDocs(electionQuery);
+        if (electionSnapshot.empty) {
+          alert("No ongoing election right now.");
+          return;
+        }
+        const electionDoc = electionSnapshot.docs[0];
+        const electionId = electionDoc.id;
+
+        // Get approved candidates for this election
+        const candidatesQuery = query(collection(db, "users"), where("role", "==", "candidate"), where("approved", "==", true));
+        const candidatesSnapshot = await getDocs(candidatesQuery);
+        if (candidatesSnapshot.empty) {
+          alert("No candidates found.");
+          return;
+        }
+
+        // Prompt voter to select a candidate
+        let candidateList = "Select a candidate to vote:\n";
+        candidatesSnapshot.docs.forEach((doc, i) => {
+          candidateList += `${i + 1}. ${doc.data().username}\n`;
+        });
+        const choice = prompt(candidateList);
+        const choiceIndex = parseInt(choice, 10) - 1;
+
+        if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= candidatesSnapshot.docs.length) {
+          alert("Invalid choice.");
+          return;
+        }
+
+        const selectedCandidate = candidatesSnapshot.docs[choiceIndex];
+
+        // Check if user already voted in this election
+        const voteDocRef = doc(db, "votes", currentUserId + "_" + electionId);
+        const voteDocSnap = await getDocs(query(collection(db, "votes"), where("voterId", "==", currentUserId), where("electionId", "==", electionId)));
+        if (!voteDocSnap.empty) {
+          alert("You have already voted in this election.");
+          return;
+        }
+
+        // Save vote
+        await setDoc(voteDocRef, {
+          voterId: currentUserId,
+          electionId,
+          candidateId: selectedCandidate.id,
+          timestamp: new Date().toISOString()
+        });
+
+        alert(`You voted for ${selectedCandidate.data().username}. Thank you!`);
+
+      } catch (error) {
+        alert("Error while voting: " + error.message);
+      }
+    };
+
+    // View Candidates: shows list of approved candidates
+    document.getElementById("viewCandidatesBtn").onclick = async () => {
+      try {
+        const q = query(collection(db, "users"), where("role", "==", "candidate"), where("approved", "==", true));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          alert("No approved candidates found.");
+          return;
+        }
+        let candidates = "Approved Candidates:\n";
+        snapshot.forEach(doc => {
+          candidates += `${doc.data().username}\n`;
+        });
+        alert(candidates);
+      } catch (error) {
+        alert("Error fetching candidates: " + error.message);
+      }
+    };
+
+    // View Election Results: aggregates votes per candidate for ongoing election
+    document.getElementById("viewResultsBtn").onclick = async () => {
+      try {
+        // Get ongoing election
+        const electionQuery = query(collection(db, "elections"), where("status", "==", "ongoing"));
+        const electionSnapshot = await getDocs(electionQuery);
+        if (electionSnapshot.empty) {
+          alert("No ongoing election.");
+          return;
+        }
+        const electionId = electionSnapshot.docs[0].id;
+
+        // Get all votes for this election
+        const votesQuery = query(collection(db, "votes"), where("electionId", "==", electionId));
+        const votesSnapshot = await getDocs(votesQuery);
+        if (votesSnapshot.empty) {
+          alert("No votes cast yet.");
+          return;
+        }
+
+        // Count votes per candidate
+        const voteCounts = {};
+        votesSnapshot.forEach(doc => {
+          const candidateId = doc.data().candidateId;
+          voteCounts[candidateId] = (voteCounts[candidateId] || 0) + 1;
+        });
+
+        // Get candidate usernames for display
+        let resultText = "Election Results:\n";
+        for (const candidateId in voteCounts) {
+          const candidateDoc = await getDocs(query(collection(db, "users"), where("__name__", "==", candidateId)));
+          const username = candidateDoc.docs[0]?.data().username || "Unknown";
+          resultText += `${username}: ${voteCounts[candidateId]} votes\n`;
+        }
+
+        alert(resultText);
+
+      } catch (error) {
+        alert("Error fetching results: " + error.message);
+      }
+    };
+
+    // Logout
+    document.getElementById("logoutBtn").onclick = async () => {
+      await signOut(auth);
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    };
+  </script>
+</body>
+</html>

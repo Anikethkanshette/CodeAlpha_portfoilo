@@ -1,0 +1,390 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aniketh Kanshette | Portfolio</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      color: dimgray;
+      background: whitesmoke;
+      overflow-x: hidden;
+    }
+
+    nav {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      animation: slideDown 0.8s ease-in-out;
+    }
+
+    @keyframes slideDown {
+      0% {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    nav .logo {
+      font-weight: 800;
+      font-size: 1.5rem;
+      color: teal;
+      transition: transform 0.3s;
+    }
+
+    nav .logo:hover {
+      transform: scale(1.05);
+    }
+
+    nav ul {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+
+    nav ul li a {
+      text-decoration: none;
+      color: teal;
+      font-weight: 600;
+      transition: color 0.3s, transform 0.3s;
+    }
+
+    nav ul li a:hover {
+      color: darkslategray;
+      transform: scale(1.1);
+    }
+
+    header {
+      height: 100vh;
+      background: url('https://images.unsplash.com/photo-1498050108023-c5249f4df085') center / cover no-repeat fixed;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.6);
+      text-align: center;
+      padding: 0 1rem;
+      animation: fadeIn 1.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    header h1 {
+      font-size: 3rem;
+      font-weight: 800;
+    }
+
+    header p {
+      font-size: 1.2rem;
+      margin-top: 0.5rem;
+      animation: slideUp 1.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      0% {
+        transform: translateY(30px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    section {
+      padding: 4rem 2rem;
+      max-width: 1000px;
+      margin: auto;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.6s ease-out;
+    }
+
+    section.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    section h2 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      color: teal;
+    }
+
+    .profile-photo {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      border: 4px solid mediumturquoise;
+      display: block;
+      margin: -80px auto 2rem;
+      animation: profileBounce 1.2s ease-out;
+    }
+
+    @keyframes profileBounce {
+      0% {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      60% {
+        transform: translateY(10px);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0);
+      }
+    }
+
+    ul li {
+      margin: 0.5rem 0;
+      background: lightcyan;
+      padding: 0.6rem 1rem;
+      border-radius: 10px;
+      font-weight: bold;
+      color: teal;
+    }
+
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: white;
+      padding: 1.2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+      opacity: 0;
+      transform: translateY(30px);
+      will-change: transform, opacity;
+    }
+
+    .card.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .card:hover {
+      transform: translateY(-8px) scale(1.03);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    a.card {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    #contact p,
+    #contact .socials {
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    #contact a {
+      color: teal;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    #contact a:hover {
+      color: darkslategray;
+      text-decoration: underline;
+    }
+
+    #contact .socials {
+      margin-top: 1rem;
+    }
+
+    #contact .socials a {
+      margin: 0 0.5rem;
+      padding: 0.4rem 1rem;
+      background-color: honeydew;
+      border-radius: 8px;
+      transition: background-color 0.3s, transform 0.3s;
+      display: inline-block;
+    }
+
+    #contact .socials a:hover {
+      background-color: lightseagreen;
+      transform: scale(1.1);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      background: honeydew;
+      color: darkslategray;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="logo">Aniketh Malikarjun Kanshette</div>
+    <ul>
+      <li><a href="#about">About</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="#experience">Experience</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </nav>
+
+  <header>
+    <h1>Aniketh Malikarjun Kanshette</h1>
+    <p>Second Year CSE Student</p>
+  </header>
+
+  <img src="photo.jpg" alt="Aniketh Kanshette" class="profile-photo" />
+
+  <section id="about">
+    <h2>About Me</h2>
+    <p>
+      I am a Computer Science Engineering student passionate about tech and
+      design. I’ve built projects like a Calculator, Calendar, SmartVoter, and a
+      College Website.
+    </p>
+  </section>
+
+  <section id="skills">
+    <h2>Skills</h2>
+    <ul>
+      <li>Excel</li>
+      <li>Word</li>
+      <li>PowerPoint</li>
+      <li>MS 360</li>
+      <li>HTML (Learning)</li>
+      <li>CSS (Learning)</li>
+      <li>JavaScript (Learning)</li>
+      <li>C (Learning)</li>
+      <li>C++ (Learning)</li>
+      <li>Python (Learning)</li>
+    </ul>
+  </section>
+
+  <section id="experience">
+    <h2>Experience</h2>
+    <div class="card-container">
+      <div class="card">
+        <h3>Worked at Tata and Tesco</h3>
+        <p>Worked for 10 months gaining valuable industry experience.</p>
+      </div>
+      <div class="card">
+        <h3>Web Developer Intern - CodeClause</h3>
+        <p>
+          Completed a 1-month internship with projects including a Calculator
+          and Calendar.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <h2>Projects</h2>
+    <div class="card-container">
+      <a href="calculator.html" target="_blank" class="card">
+        <h3>Calculator</h3>
+        <p>Web calculator using HTML, CSS & JS.</p>
+      </a>
+      <a href="calendar.html" target="_blank" class="card">
+        <h3>Calendar</h3>
+        <p>Custom calendar with event tracking.</p>
+      </a>
+      <a href="index.html" target="_blank" class="card">
+        <h3>SmartVoter</h3>
+        <p>Voting system.</p>
+      </a>
+      <a href="college.html" target="_blank" class="card">
+        <h3>College Website</h3>
+        <p>Site for showcasing college info.</p>
+      </a>
+      <a href="attendance.html" target="_blank" class="card">
+        <h3>Attendance</h3>
+        <p>College attendance management system.</p>
+      </a>
+      <a href="code-with-aniketh.html" target="_blank" class="card">
+        <h3>CODE-WITH-ANIKETH-AI</h3>
+        <p>AI-powered coding assistant project.</p>
+      </a>
+      <a href="PersonalAi.html" target="_blank" class="card">
+        <h3>PersonalAI</h3>
+        <p>A personalized AI assistant for coding, currently in training.</p>
+      </a>
+      <a href="work_manager.html" target="_blank" class="card">
+        <h3>Work Manager</h3>
+        <p>Project/task management system.</p>
+      </a>
+      <a href="digital_clock.html" target="_blank" class="card">
+        <h3>Digital Clock</h3>
+        <p>A simple digital clock showing current time in real-time.</p>
+      </a>
+      <a href="w.html" target="_blank" class="card">
+        <h3>Weather</h3>
+        <p>Live weather forecast project with HTML, CSS & JavaScript.</p>
+      </a>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2>Contact</h2>
+    <p>Email: <a href="mailto:anilkanshette@gmail.com">anilkanshette@gmail.com</a></p>
+    <p>Phone: <a href="tel:+919022782118">9022782118</a></p>
+    <div class="socials">
+      <a href="https://www.instagram.com/aniketh.patil.kanshette">Instagram</a>
+      <a href="https://www.linkedin.com/in/aniketh-kanshette-32b6032a2">LinkedIn</a>
+      <a href="https://formspree.io/f/xblokqaw">Form</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2025 Aniketh Malkarjun Kanshette @ all rights reserved</p>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('show');
+        }
+      });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('section, .card').forEach(el => observer.observe(el));
+  </script>
+
+</body>
+</html>

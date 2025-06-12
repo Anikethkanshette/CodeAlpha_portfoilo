@@ -1,0 +1,316 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aniketh Work Manager</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: lightgray;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    input, textarea, select {
+      width: 100%;
+      margin: 5px 0;
+      padding: 8px;
+    }
+    button {
+      padding: 8px 12px;
+      margin: 5px 5px 5px 0;
+      cursor: pointer;
+    }
+    .board {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .column {
+      flex: 1;
+      min-width: 300px;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      min-height: 300px;
+    }
+    .task {
+      background: gainsboro;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: grab;
+    }
+    .task.dragging {
+      opacity: 0.5;
+    }
+    .task strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+    .pagination {
+      margin-top: 10px;
+      text-align: center;
+    }
+    .search-bar {
+      margin: 15px 0;
+    }
+    .export-buttons {
+      margin: 15px 0;
+    }
+    .task.overdue {
+      border: 2px solid red;
+      animation: flash 1s infinite;
+    }
+    @keyframes flash {
+      0% { box-shadow: 0 0 5px red; }
+      50% { box-shadow: 0 0 15px red; }
+      100% { box-shadow: 0 0 5px red; }
+    }
+    #taskForm {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 5px gray;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Work Manager</h2>
+    <div id="taskForm">
+      <input type="hidden" id="editTaskId" />
+      <input type="text" id="title" placeholder="Task Title" />
+      <textarea id="desc" placeholder="Description"></textarea>
+      <input type="date" id="due" />
+      <input type="text" id="assignee" placeholder="Assignee Username" />
+      <select id="status">
+        <option value="todo">To Do</option>
+        <option value="inprogress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      <button onclick="saveTask()">Save Task</button>
+      <button onclick="cancelEdit()">Cancel</button>
+    </div>
+
+    <div class="export-buttons">
+      <button onclick="exportCSV()">Export to CSV</button>
+      <button onclick="exportPDF()">Export to PDF</button>
+    </div>
+
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="Search tasks..." oninput="renderBoard()" />
+    </div>
+
+    <div class="board">
+      <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'todo')">
+        <h3>To Do</h3>
+        <div id="todoTasks"></div>
+        <div class="pagination" id="todoPages"></div>
+      </div>
+      <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'inprogress')">
+        <h3>In Progress</h3>
+        <div id="inprogressTasks"></div>
+        <div class="pagination" id="inprogressPages"></div>
+      </div>
+      <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'done')">
+        <h3>Done</h3>
+        <div id="doneTasks"></div>
+        <div class="pagination" id="donePages"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    const perPage = 5;
+    let pageIndex = { todo: 0, inprogress: 0, done: 0 };
+
+    function saveTask() {
+      const id = document.getElementById('editTaskId').value;
+      const title = document.getElementById('title').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+      const due = document.getElementById('due').value;
+      const assignee = document.getElementById('assignee').value.trim();
+      const status = document.getElementById('status').value;
+
+      if (!title || !due || !assignee) return alert('Please fill Title, Due Date, and Assignee.');
+
+      if (id) {
+        tasks = tasks.map(t => t.id == id ? { id, title, desc, due, assignee, status } : t);
+      } else {
+        tasks.push({ id: Date.now(), title, desc, due, assignee, status });
+      }
+
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      cancelEdit();
+      renderBoard();
+    }
+
+    function cancelEdit() {
+      document.getElementById('editTaskId').value = '';
+      document.getElementById('title').value = '';
+      document.getElementById('desc').value = '';
+      document.getElementById('due').value = '';
+      document.getElementById('assignee').value = '';
+      document.getElementById('status').value = 'todo';
+    }
+
+    function renderBoard() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const today = new Date().toISOString().split('T')[0];
+
+      ['todo', 'inprogress', 'done'].forEach(status => {
+        const filtered = tasks.filter(t => t.status === status && (
+          t.title.toLowerCase().includes(search) ||
+          t.desc.toLowerCase().includes(search) ||
+          t.assignee.toLowerCase().includes(search)
+        ));
+
+        const start = pageIndex[status] * perPage;
+        const paginated = filtered.slice(start, start + perPage);
+
+        const container = document.getElementById(status + 'Tasks');
+        container.innerHTML = '';
+
+        paginated.forEach(task => {
+          const isOverdue = task.due < today && task.status !== 'done';
+          const div = document.createElement('div');
+          div.className = 'task';
+          if (isOverdue) div.classList.add('overdue');
+          div.draggable = true;
+          div.ondragstart = e => drag(e, task.id);
+          div.innerHTML = `<strong>${task.title}</strong>
+            ${task.desc}<br>
+            <small>Due: ${task.due} ${isOverdue ? '⚠️' : ''}</small><br>
+            <small>Assignee: ${task.assignee}</small><br>
+            <button onclick='edit(${task.id})'>Edit</button>
+            <button onclick='remove(${task.id})'>Delete</button>`;
+          container.appendChild(div);
+        });
+
+        renderPagination(status, filtered.length);
+      });
+    }
+
+    function renderPagination(status, total) {
+      const pages = Math.ceil(total / perPage);
+      const wrapper = document.getElementById(status + 'Pages');
+      wrapper.innerHTML = '';
+      if (pages <= 1) return;
+
+      if (pageIndex[status] > 0) {
+        let prev = document.createElement('button');
+        prev.innerText = 'Prev';
+        prev.onclick = () => { pageIndex[status]--; renderBoard(); };
+        wrapper.appendChild(prev);
+      }
+
+      if (pageIndex[status] < pages - 1) {
+        let next = document.createElement('button');
+        next.innerText = 'Next';
+        next.onclick = () => { pageIndex[status]++; renderBoard(); };
+        wrapper.appendChild(next);
+      }
+    }
+
+    function edit(id) {
+      const t = tasks.find(t => t.id == id);
+      document.getElementById('editTaskId').value = t.id;
+      document.getElementById('title').value = t.title;
+      document.getElementById('desc').value = t.desc;
+      document.getElementById('due').value = t.due;
+      document.getElementById('assignee').value = t.assignee;
+      document.getElementById('status').value = t.status;
+    }
+
+    function remove(id) {
+      tasks = tasks.filter(t => t.id != id);
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      renderBoard();
+    }
+
+    function drag(e, id) {
+      e.dataTransfer.setData('text/plain', id);
+    }
+
+    function allowDrop(e) {
+      e.preventDefault();
+    }
+
+    function drop(e, newStatus) {
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain');
+      tasks = tasks.map(t => t.id == id ? { ...t, status: newStatus } : t);
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      renderBoard();
+    }
+
+    function exportCSV() {
+      let csv = 'ID,Title,Description,Due,Assignee,Status\n';
+      tasks.forEach(t => {
+        csv += `${t.id},"${t.title.replace(/"/g, '""')}","${t.desc.replace(/"/g, '""')}",${t.due},${t.assignee},${t.status}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tasks.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+
+      doc.setFontSize(16);
+      doc.text('Kanban Task Report', 10, y);
+      y += 10;
+
+      doc.setFontSize(12);
+      tasks.forEach(t => {
+        const isOverdue = t.due < new Date().toISOString().split('T')[0] && t.status !== 'done';
+        const lines = [
+          `ID: ${t.id}`,
+          `Title: ${t.title}`,
+          `Desc: ${t.desc}`,
+          `Due: ${t.due}${isOverdue ? ' ⚠️' : ''}`,
+          `Assignee: ${t.assignee}`,
+          `Status: ${t.status}`
+        ];
+
+        lines.forEach(line => {
+          if (y > 280) {
+            doc.addPage();
+            y = 10;
+          }
+          doc.text(line, 10, y);
+          y += 6;
+        });
+
+        y += 4;
+      });
+
+      doc.save('tasks.pdf');
+    }
+
+    renderBoard();
+  </script>
+</body>
+</html>
+

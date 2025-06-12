@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Candidate Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gradient-to-r from-purple-100 to-blue-200 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-2xl text-center">
+    <h1 class="text-4xl font-extrabold text-purple-800 mb-4">Candidate Dashboard</h1>
+    <p class="text-gray-600 mb-8 text-lg">Participate in elections and view your profile</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <button id="viewProfileBtn" class="bg-indigo-600 text-white py-3 px-6 rounded-xl shadow hover:bg-indigo-700 transition transform hover:scale-105">View Profile</button>
+      <button id="viewElectionsBtn" class="bg-blue-600 text-white py-3 px-6 rounded-xl shadow hover:bg-blue-700 transition transform hover:scale-105">Election Info</button>
+      <button id="checkResultsBtn" class="bg-green-600 text-white py-3 px-6 rounded-xl shadow hover:bg-green-700 transition transform hover:scale-105">Check Results</button>
+      <button id="logoutBtn" class="bg-red-500 text-white py-3 px-6 rounded-xl shadow hover:bg-red-600 transition transform hover:scale-105">Logout</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      collection,
+      query,
+      where,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD73Q9crZ5kqVO2ziU_hp5YTyM24eQSziU",
+      authDomain: "smartvote-b605e.firebaseapp.com",
+      projectId: "smartvote-b605e",
+      storageBucket: "smartvote-b605e.appspot.com",
+      messagingSenderId: "1073958321007",
+      appId: "1:1073958321007:web:cfb8c80143746382f6c69a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    const currentUserId = localStorage.getItem("currentUser");
+
+    // View Profile
+    document.getElementById("viewProfileBtn").onclick = async () => {
+      if (!currentUserId) return alert("User not logged in.");
+      const docRef = doc(db, "users", currentUserId);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        alert(`👤 Username: ${data.username}\n📧 Email: ${data.email}\n🧾 PRN: ${data.prn}\n🏛️ Branch: ${data.branch}\n✅ Approved: ${data.approved}`);
+      } else {
+        alert("Profile not found.");
+      }
+    };
+
+    // View Election Info
+    document.getElementById("viewElectionsBtn").onclick = async () => {
+      const q = query(collection(db, "elections"), where("status", "==", "ongoing"));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        alert("No ongoing elections currently.");
+        return;
+      }
+
+      let elections = "📋 Ongoing Elections:\n";
+      snapshot.forEach(doc => {
+        const e = doc.data();
+        elections += `🗳️ ${e.name}\nStarts: ${e.startDate}\nEnds: ${e.endDate || "Not set"}\n\n`;
+      });
+
+      alert(elections);
+    };
+
+    // Check Results
+    document.getElementById("checkResultsBtn").onclick = async () => {
+      try {
+        const electionQuery = query(collection(db, "elections"), where("status", "==", "ongoing"));
+        const electionSnap = await getDocs(electionQuery);
+        if (electionSnap.empty) return alert("No ongoing election.");
+
+        const electionId = electionSnap.docs[0].id;
+
+        const votesQuery = query(collection(db, "votes"), where("electionId", "==", electionId));
+        const votesSnap = await getDocs(votesQuery);
+        if (votesSnap.empty) return alert("No votes yet.");
+
+        let count = 0;
+        votesSnap.forEach(doc => {
+          if (doc.data().candidateId === currentUserId) count++;
+        });
+
+        alert(`📊 You have received ${count} vote(s) so far.`);
+      } catch (error) {
+        alert("Error checking results: " + error.message);
+      }
+    };
+
+    // Logout
+    document.getElementById("logoutBtn").onclick = async () => {
+      await signOut(auth);
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    };
+  </script>
+</body>
+</html>

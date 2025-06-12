@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advanced Clock with Alarms & Countdown</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: midnightblue;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+      margin: 0;
+    }
+
+    .container {
+      background-color: darkslategray;
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 0 20px aqua;
+    }
+
+    #clock {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: lightcyan;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      background-color: deepskyblue;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: dodgerblue;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      margin: 5px 0;
+    }
+
+    #countdownDisplay {
+      font-size: 24px;
+      margin-top: 10px;
+      color: lightgreen;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Digital Clock</h1>
+    <div id="clock">00:00:00</div>
+
+    <h2>Set Alarm</h2>
+    <input type="time" id="alarmTime" />
+    <button onclick="addAlarm()">Add Alarm</button>
+    <ul id="alarmsList"></ul>
+
+    <h2>Countdown Timer</h2>
+    <input type="number" id="countdownMinutes" placeholder="Minutes" />
+    <button onclick="startCountdown()">Start</button>
+    <div id="countdownDisplay">00:00</div>
+  </div>
+
+  <audio id="alarmSound" src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" preload="auto"></audio>
+
+  <script>
+    const clock = document.getElementById("clock");
+    const alarmTimeInput = document.getElementById("alarmTime");
+    const alarmsList = document.getElementById("alarmsList");
+    const alarmSound = document.getElementById("alarmSound");
+
+    const countdownInput = document.getElementById("countdownMinutes");
+    const countdownDisplay = document.getElementById("countdownDisplay");
+
+    let alarms = [];
+    let countdownInterval = null;
+
+    // Live clock
+    setInterval(() => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      clock.textContent = now.toLocaleTimeString();
+
+      alarms.forEach((alarm, index) => {
+        if (alarm === timeStr) {
+          alarmSound.play();
+          alert(`⏰ Alarm ${index + 1} is ringing!`);
+        }
+      });
+    }, 1000);
+
+    // Add multiple alarms
+    function addAlarm() {
+      const timeValue = alarmTimeInput.value;
+      if (!timeValue) {
+        alert("Please select a time");
+        return;
+      }
+
+      const formattedTime = new Date(`1970-01-01T${timeValue}:00`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      alarms.push(formattedTime);
+      renderAlarms();
+      alarmTimeInput.value = "";
+    }
+
+    // Show alarms
+    function renderAlarms() {
+      alarmsList.innerHTML = "";
+      alarms.forEach((alarm, index) => {
+        const li = document.createElement("li");
+        li.textContent = `Alarm ${index + 1}: ${alarm}`;
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.onclick = () => removeAlarm(index);
+        li.appendChild(removeBtn);
+        alarmsList.appendChild(li);
+      });
+    }
+
+    function removeAlarm(index) {
+      alarms.splice(index, 1);
+      renderAlarms();
+    }
+
+    // Countdown timer
+    function startCountdown() {
+      const minutes = parseInt(countdownInput.value);
+      if (isNaN(minutes) || minutes <= 0) {
+        alert("Enter a valid number of minutes.");
+        return;
+      }
+
+      let seconds = minutes * 60;
+
+      clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        const min = Math.floor(seconds / 60);
+        const sec = seconds % 60;
+        countdownDisplay.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        seconds--;
+
+        if (seconds < 0) {
+          clearInterval(countdownInterval);
+          countdownDisplay.textContent = "00:00";
+          alarmSound.play();
+          alert("⏳ Countdown finished!");
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>

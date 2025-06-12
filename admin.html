@@ -1,0 +1,147 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gradient-to-r from-blue-100 to-purple-200 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-2xl text-center">
+    <h1 class="text-4xl font-extrabold text-blue-800 mb-4">Admin Dashboard</h1>
+    <p class="text-gray-600 mb-8 text-lg">Manage elections, candidates, and voter data</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <button onclick="approveCandidates()" class="bg-blue-600 text-white py-3 px-6 rounded-xl shadow hover:bg-blue-700 transition transform hover:scale-105">Approve/Reject Candidates</button>
+      <button onclick="manageElections()" class="bg-green-600 text-white py-3 px-6 rounded-xl shadow hover:bg-green-700 transition transform hover:scale-105">Manage Branch Elections</button>
+      <button onclick="viewVoters()" class="bg-purple-600 text-white py-3 px-6 rounded-xl shadow hover:bg-purple-700 transition transform hover:scale-105">View Registered Voters</button>
+      <button onclick="logout()" class="bg-red-500 text-white py-3 px-6 rounded-xl shadow hover:bg-red-600 transition transform hover:scale-105">Logout</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      query,
+      where,
+      getDocs,
+      updateDoc,
+      doc
+    } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD73Q9crZ5kqVO2ziU_hp5YTyM24eQSziU",
+      authDomain: "smartvote-b605e.firebaseapp.com",
+      projectId: "smartvote-b605e",
+      storageBucket: "smartvote-b605e.firebasestorage.app",
+      messagingSenderId: "1073958321007",
+      appId: "1:1073958321007:web:cfb8c80143746382f6c69a",
+      measurementId: "G-HKP5V78485"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    // ✅ Approve or Reject Candidates
+    window.approveCandidates = async () => {
+      const q = query(collection(db, "users"), where("role", "==", "candidate"), where("approved", "==", false));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        alert("No candidates to approve.");
+        return;
+      }
+
+      for (const docSnap of snapshot.docs) {
+        const candidate = docSnap.data();
+        const confirmApproval = confirm(`Approve candidate: ${candidate.username}?`);
+        if (confirmApproval) {
+          await updateDoc(doc(db, "users", docSnap.id), { approved: true });
+        }
+      }
+
+      alert("Candidate approvals updated.");
+    };
+
+    // ✅ Manage Branch Elections
+    window.manageElections = async () => {
+      const choice = prompt("Choose:\n1. Declare new branch election\n2. View ongoing elections\n3. End a branch election");
+
+      if (choice === "1") {
+        const branch = prompt("Enter branch name (e.g., CSE):");
+        if (!branch) return alert("Branch is required.");
+        const endDate = prompt("Enter end date (YYYY-MM-DD):");
+        if (!endDate) return alert("End date is required.");
+
+        await addDoc(collection(db, "branch_elections"), {
+          branch: branch.toUpperCase(),
+          startDate: new Date().toISOString(),
+          endDate,
+          status: "ongoing"
+        });
+
+        alert(`Election declared for ${branch.toUpperCase()} branch.`);
+
+      } else if (choice === "2") {
+        const q = query(collection(db, "branch_elections"), where("status", "==", "ongoing"));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return alert("No ongoing branch elections.");
+
+        let result = "📋 Ongoing Branch Elections:\n";
+        snapshot.forEach(doc => {
+          const e = doc.data();
+          result += `📌 ${e.branch} → Ends: ${e.endDate}\n`;
+        });
+
+        alert(result);
+
+      } else if (choice === "3") {
+        const branch = prompt("Enter branch name to end its election:");
+        if (!branch) return alert("Branch is required.");
+
+        const q = query(collection(db, "branch_elections"), where("branch", "==", branch.toUpperCase()), where("status", "==", "ongoing"));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return alert("No ongoing election found for this branch.");
+
+        for (const docSnap of snapshot.docs) {
+          await updateDoc(doc(db, "branch_elections", docSnap.id), {
+            status: "ended"
+          });
+        }
+
+        alert(`Election for ${branch.toUpperCase()} has been ended.`);
+      } else {
+        alert("Invalid choice.");
+      }
+    };
+
+    // ✅ View Registered Voters
+    window.viewVoters = async () => {
+      const q = query(collection(db, "users"), where("role", "==", "voter"));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        alert("No registered voters found.");
+        return;
+      }
+
+      let votersList = "✅ Registered Voters:\n";
+      snapshot.forEach(doc => {
+        const voter = doc.data();
+        votersList += `- ${voter.username} (${voter.prn})\n`;
+      });
+
+      alert(votersList);
+    };
+
+    // ✅ Logout
+    window.logout = async () => {
+      await signOut(auth);
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    };
+  </script>
+</body>
+</html>

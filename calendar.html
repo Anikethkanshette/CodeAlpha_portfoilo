@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calendar with Today and Tomorrow</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+
+    .calendar {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .calendar-header button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .day, .date {
+      text-align: center;
+      padding: 10px;
+    }
+
+    .day {
+      font-weight: bold;
+    }
+
+    .date {
+      background: #eee;
+      cursor: pointer;
+      border-radius: 5px;
+      position: relative;
+    }
+
+    .date:hover {
+      background: #ddd;
+    }
+
+    .today {
+      background: #007bff;
+      color: white;
+      font-weight: bold;
+    }
+
+    .tomorrow {
+      background: #28a745;
+      color: white;
+      font-weight: bold;
+    }
+
+    .event-dot {
+      width: 6px;
+      height: 6px;
+      background: #007bff;
+      border-radius: 50%;
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    #eventModal {
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -20%);
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 100;
+    }
+
+    #eventModal textarea {
+      width: 100%;
+      height: 80px;
+      margin-top: 10px;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      z-index: 99;
+    }
+
+    #eventList {
+      max-height: 100px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="calendar">
+    <div class="calendar-header">
+      <button onclick="changeMonth(-1)">← Prev</button>
+      <h2 id="monthYear"></h2>
+      <button onclick="changeMonth(1)">Next →</button>
+    </div>
+    <div class="calendar-grid" id="calendarDays">
+      <div class="day">Sun</div>
+      <div class="day">Mon</div>
+      <div class="day">Tue</div>
+      <div class="day">Wed</div>
+      <div class="day">Thu</div>
+      <div class="day">Fri</div>
+      <div class="day">Sat</div>
+    </div>
+  </div>
+
+  <div id="overlay" onclick="closeModal()"></div>
+
+  <div id="eventModal">
+    <h3 id="selectedDate"></h3>
+    <div id="eventList"></div>
+    <textarea id="eventInput" placeholder="Add event..."></textarea>
+    <br/>
+    <button onclick="saveEvent()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+
+  <script>
+    const monthYear = document.getElementById("monthYear");
+    const calendarDays = document.getElementById("calendarDays");
+    const eventModal = document.getElementById("eventModal");
+    const eventInput = document.getElementById("eventInput");
+    const eventList = document.getElementById("eventList");
+    const overlay = document.getElementById("overlay");
+    const selectedDateDisplay = document.getElementById("selectedDate");
+
+    let currentDate = new Date();
+    let selectedDate = null;
+
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      const today = new Date();
+      const tomorrow = new Date();
+      tomorrow.setDate(today.getDate() + 1);
+
+      const isCurrentMonth = (date) => date.getMonth() === month && date.getFullYear() === year;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+
+      calendarDays.innerHTML = `
+        <div class="day">Sun</div>
+        <div class="day">Mon</div>
+        <div class="day">Tue</div>
+        <div class="day">Wed</div>
+        <div class="day">Thu</div>
+        <div class="day">Fri</div>
+        <div class="day">Sat</div>
+      `;
+
+      for (let i = 0; i < firstDay; i++) {
+        calendarDays.innerHTML += `<div></div>`;
+      }
+
+      for (let i = 1; i <= totalDays; i++) {
+        const fullDate = `${year}-${month + 1}-${i}`;
+        const events = JSON.parse(localStorage.getItem(fullDate) || "[]");
+
+        const thisDate = new Date(year, month, i);
+        let extraClass = "";
+
+        if (isCurrentMonth(today) && today.getDate() === i) {
+          extraClass = "today";
+        } else if (isCurrentMonth(tomorrow) && tomorrow.getDate() === i) {
+          extraClass = "tomorrow";
+        }
+
+        calendarDays.innerHTML += `
+          <div class="date ${extraClass}" onclick="openModal('${fullDate}')">
+            ${i}
+            ${events.length > 0 ? '<div class="event-dot"></div>' : ''}
+          </div>
+        `;
+      }
+
+      const monthNames = ["January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"];
+      monthYear.innerText = `${monthNames[month]} ${year}`;
+    }
+
+    function changeMonth(direction) {
+      currentDate.setMonth(currentDate.getMonth() + direction);
+      renderCalendar();
+    }
+
+    function openModal(date) {
+      selectedDate = date;
+      selectedDateDisplay.innerText = `Events on ${date}`;
+      eventInput.value = "";
+      eventList.innerHTML = "";
+
+      const events = JSON.parse(localStorage.getItem(date) || "[]");
+      events.forEach((event) => {
+        const p = document.createElement("p");
+        p.textContent = `• ${event}`;
+        eventList.appendChild(p);
+      });
+
+      eventModal.style.display = "block";
+      overlay.style.display = "block";
+    }
+
+    function closeModal() {
+      eventModal.style.display = "none";
+      overlay.style.display = "none";
+    }
+
+    function saveEvent() {
+      if (!selectedDate || !eventInput.value.trim()) return;
+
+      const events = JSON.parse(localStorage.getItem(selectedDate) || "[]");
+      events.push(eventInput.value.trim());
+      localStorage.setItem(selectedDate, JSON.stringify(events));
+
+      eventInput.value = "";
+      closeModal();
+      renderCalendar();
+    }
+
+    renderCalendar();
+  </script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CodeTutor Chatbot</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
+      background: #000;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: url('https://cdn.jsdelivr.net/gh/JulianLai/3D-Star-Background/bg.gif') center center / cover no-repeat;
+      z-index: -2;
+    }
+
+    #container {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.95);
+      width: 450px;
+      max-width: 95%;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.2);
+      animation: fadeIn 1s ease;
+    }
+
+    #chat {
+      height: 400px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+    }
+
+    .msg {
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 6px;
+      max-width: 85%;
+      animation: slideIn 0.3s ease;
+    }
+
+    .user {
+      background: #c7f4d4;
+      text-align: right;
+      margin-left: auto;
+    }
+
+    .bot {
+      background: #eaeaea;
+      text-align: left;
+      margin-right: auto;
+    }
+
+    #inputArea {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #007B55;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #005d40;
+    }
+
+    #tools {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -60%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="container">
+  <div id="chat"></div>
+  <div id="inputArea">
+    <input id="userInput" type="text" placeholder="Ask about coding..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="startVoice()" title="Voice Input 🎙">🎙</button>
+  </div>
+  <div id="tools">
+    <button onclick="exportChat()">📄 Export Chat</button>
+  </div>
+</div>
+
+<script>
+  if (!navigator.onLine) {
+    alert("⚠️ This chatbot only works online.");
+    document.body.innerHTML = "<h2 style='text-align:center;color:red;'>Connect to the internet to use the chatbot.</h2>";
+  }
+
+  const chatLog = [];
+
+  function appendMessage(text, sender) {
+    const chat = document.getElementById("chat");
+    const msg = document.createElement("div");
+    msg.className = "msg " + sender;
+    msg.textContent = text;
+    chat.appendChild(msg);
+    chat.scrollTop = chat.scrollHeight;
+    chatLog.push(`${sender === "user" ? "You" : "Bot"}: ${text}`);
+  }
+
+  function getBotReply(input) {
+    const cleaned = input.toLowerCase().replace(/[^\w\s]/gi, "");
+
+    const intents = [
+      {
+        topic: "python",
+        patterns: ["python", "py", "what is python", "python code", "python tutorial", "python functions", "python oop"],
+        response: "Python is a high-level programming language, great for beginners. It supports OOP (Object-Oriented Programming), functional programming, and more. You can use it in data science, machine learning, web development, and more."
+      },
+      {
+        topic: "html",
+        patterns: ["html", "what is html", "html code", "structure of a webpage", "html tags", "html attributes", "html5"],
+        response: "HTML (HyperText Markup Language) is the foundational language for creating webpages. It uses elements like <div>, <p>, <a>, and more. HTML5 introduced new features like the <video> tag, new input types, etc."
+      },
+      {
+        topic: "css",
+        patterns: ["css", "what is css", "css layout", "css grid", "css flexbox", "css animations", "css transitions", "responsive design"],
+        response: "CSS is used to style HTML elements. It controls layout (using Grid, Flexbox), appearance (colors, fonts), and even animations/transitions. It also enables responsive web design to work on mobile and desktop."
+      },
+      {
+        topic: "javascript",
+        patterns: ["javascript", "js", "frontend scripting", "what is js", "js functions", "async js", "javascript promises", "js closures"],
+        response: "JavaScript is the language of the web. It's used to make web pages interactive, and can be used for frontend (DOM manipulation) or backend (Node.js). Common concepts include promises, async/await, closures, and event handling."
+      },
+      {
+        topic: "git",
+        patterns: ["git", "version control", "github", "git commands", "commit", "push", "pull", "clone", "git branches"],
+        response: "Git is a distributed version control system. It helps developers track changes in code. GitHub is a platform to share and collaborate on Git repositories. Common commands are git commit, git push, git pull, and git merge."
+      },
+      {
+        topic: "sql",
+        patterns: ["sql", "database", "queries", "select", "insert", "update", "delete", "join", "group by", "aggregate functions", "sql normalization"],
+        response: "SQL (Structured Query Language) is used to interact with relational databases. Common SQL commands include SELECT, INSERT, UPDATE, DELETE, and JOIN. SQL also includes aggregate functions like COUNT, SUM, AVG, and concepts like normalization."
+      },
+      {
+        topic: "algorithms",
+        patterns: ["algorithm", "sorting", "searching", "binary search", "quicksort", "mergesort", "time complexity", "big O notation"],
+        response: "Algorithms are step-by-step procedures for solving problems. Sorting algorithms like Quicksort, Mergesort, and Bubble Sort help organize data. Searching algorithms include Binary Search. Time complexity is described using Big O notation."
+      },
+      {
+        topic: "data structures",
+        patterns: ["data structure", "array", "linked list", "stack", "queue", "tree", "graph", "hash table", "binary tree", "heap"],
+        response: "Data structures help organize and store data efficiently. Examples include arrays, linked lists, stacks, queues, trees (like binary search trees), graphs, and hash tables. These structures are essential for algorithm optimization."
+      },
+      {
+        topic: "object oriented programming",
+        patterns: ["oop", "class", "object", "inheritance", "polymorphism", "encapsulation", "abstraction"],
+        response: "OOP (Object-Oriented Programming) is a paradigm that organizes code using classes and objects. Key concepts are inheritance (class hierarchy), polymorphism (method overriding), encapsulation (data hiding), and abstraction (simplifying complex systems)."
+      },
+      {
+        topic: "node.js",
+        patterns: ["node.js", "node", "backend javascript", "server-side js", "npm", "express.js"],
+        response: "Node.js is a JavaScript runtime that runs server-side code. It's fast and scalable, often used for building APIs and real-time apps. NPM (Node Package Manager) is used to manage libraries, and Express.js is a popular web framework for Node.js."
+      },
+      {
+        topic: "react",
+        patterns: ["react", "reactjs", "react components", "hooks", "redux", "react router", "react tutorial"],
+        response: "React is a JavaScript library for building user interfaces. It uses components to create reusable UI elements. React Hooks (like useState and useEffect) manage component state and side effects. Redux is used for state management, and React Router handles routing."
+      },
+      {
+        topic: "vue.js",
+        patterns: ["vue", "vuejs", "vue framework", "vue components", "vuex", "vue-router"],
+        response: "Vue.js is a progressive JavaScript framework for building UIs. It's similar to React but with a more flexible approach to structure. Vuex is used for state management, and Vue Router handles routing."
+      },
+      {
+        topic: "flutter",
+        patterns: ["flutter", "dart", "mobile app development", "flutter tutorial"],
+        response: "Flutter is a UI framework from Google for building natively compiled applications for mobile, web, and desktop from a single codebase. It uses the Dart programming language."
+      },
+      {
+        topic: "docker",
+        patterns: ["docker", "containers", "dockerize", "docker image", "docker-compose", "dockerfile"],
+        response: "Docker allows you to package applications and their dependencies into a container. Docker Compose helps manage multi-container Docker applications. Dockerfile is used to define the steps to create a Docker image."
+      },
+      {
+        topic: "design patterns",
+        patterns: ["design patterns", "singleton", "factory", "observer", "strategy", "decorator", "mvc", "singleton pattern"],
+        response: "Design patterns are common solutions to recurring software design problems. Examples include the Singleton (ensures a class has only one instance), Factory (creates objects without specifying exact class), and Observer (used for event handling)."
+      },
+      {
+        topic: "web development",
+        patterns: ["web development", "frontend", "backend", "fullstack", "api", "rest", "http methods", "responsive design"],
+        response: "Web development refers to building websites and web applications. Frontend is the client-side (HTML, CSS, JS), backend is the server-side (Node.js, Python, etc.), and full-stack involves both. APIs enable communication between frontend and backend."
+      }
+    ];
+
+    for (let intent of intents) {
+      if (intent.patterns.some(p => cleaned.includes(p))) {
+        return intent.response;
+      }
+    }
+
+    return "🤖 I couldn't understand that well. Try asking about Python, HTML, Git, React, APIs, Data Structures, Algorithms, or more coding topics!";
+  }
+
+  function sendMessage(textOverride = null) {
+    const input = document.getElementById("userInput");
+    const userText = textOverride || input.value.trim();
+    if (!userText) return;
+    appendMessage(userText, "user");
+    const botReply = getBotReply(userText);
+    setTimeout(() => appendMessage(botReply, "bot"), 400);
+    input.value = "";
+  }
+
+  function exportChat() {
+    const blob = new Blob([chatLog.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "chat_history.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("🎤 Voice recognition is not supported in this browser.");
+      return;
+    }
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      document.getElementById("userInput").value = transcript;
+      sendMessage(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      alert("Voice error: " + event.error);
+    };
+
+    recognition.start();
+  }
+</script>
+
+</body>
+</html>

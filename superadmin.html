@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Super Admin Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+<body class="bg-gradient-to-r from-yellow-100 to-red-200 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-2xl rounded-3xl p-10 w-full max-w-2xl text-center">
+    <h1 class="text-4xl font-extrabold text-red-800 mb-4">Super Admin Dashboard</h1>
+    <p class="text-gray-600 mb-8 text-lg">Manage overall election operations</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <button id="declareBtn" class="bg-red-600 text-white py-3 px-6 rounded-xl shadow hover:bg-red-700 transition transform hover:scale-105">Declare Election</button>
+      <button id="setEndDateBtn" class="bg-yellow-600 text-white py-3 px-6 rounded-xl shadow hover:bg-yellow-700 transition transform hover:scale-105">Set Election End Date</button>
+      <button id="approveAdminsBtn" class="bg-pink-600 text-white py-3 px-6 rounded-xl shadow hover:bg-pink-700 transition transform hover:scale-105">Approve Admins</button>
+      <button id="reviewCandidatesBtn" class="bg-indigo-600 text-white py-3 px-6 rounded-xl shadow hover:bg-indigo-700 transition transform hover:scale-105">Final Approve Candidates</button>
+      <button id="addAdminBtn" class="bg-green-600 text-white py-3 px-6 rounded-xl shadow hover:bg-green-700 transition transform hover:scale-105">Add Admin</button>
+      <button id="addCandidateBtn" class="bg-blue-800 text-white py-3 px-6 rounded-xl shadow hover:bg-blue-900 transition transform hover:scale-105">Add Candidate</button>
+      <button id="logoutBtn" class="bg-gray-500 text-white py-3 px-6 rounded-xl shadow hover:bg-gray-600 transition transform hover:scale-105 col-span-2">Logout</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-analytics.js";
+    import { getAuth, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      doc,
+      updateDoc,
+      query,
+      where,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD73Q9crZ5kqVO2ziU_hp5YTyM24eQSziU",
+      authDomain: "smartvote-b605e.firebaseapp.com",
+      projectId: "smartvote-b605e",
+      storageBucket: "smartvote-b605e.firebasestorage.app",
+      messagingSenderId: "1073958321007",
+      appId: "1:1073958321007:web:cfb8c80143746382f6c69a",
+      measurementId: "G-HKP5V78485"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    document.getElementById("declareBtn").onclick = async () => {
+      const electionName = prompt("Enter election name:");
+      if (!electionName) return alert("Election name required");
+      const startDate = new Date().toISOString();
+
+      try {
+        await addDoc(collection(db, "elections"), {
+          name: electionName,
+          startDate: startDate,
+          endDate: null,
+          status: "ongoing"
+        });
+        alert("Election declared successfully!");
+      } catch (err) {
+        alert("Error declaring election: " + err.message);
+      }
+    };
+
+    document.getElementById("setEndDateBtn").onclick = async () => {
+      const electionName = prompt("Enter election name to set end date:");
+      if (!electionName) return alert("Election name required");
+      const endDate = prompt("Enter election end date (YYYY-MM-DD):");
+      if (!endDate) return alert("End date required");
+
+      try {
+        const q = query(collection(db, "elections"), where("name", "==", electionName));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+          alert("Election not found!");
+          return;
+        }
+        for (const docSnap of querySnapshot.docs) {
+          await updateDoc(doc(db, "elections", docSnap.id), {
+            endDate: endDate,
+            status: "ended"
+          });
+        }
+        alert("Election end date set successfully!");
+      } catch (err) {
+        alert("Error setting end date: " + err.message);
+      }
+    };
+
+    document.getElementById("approveAdminsBtn").onclick = async () => {
+      try {
+        const q = query(collection(db, "users"), where("role", "==", "admin"), where("approved", "==", false));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          alert("No pending admins to approve.");
+          return;
+        }
+        for (const docSnap of snapshot.docs) {
+          if (confirm(`Approve admin ${docSnap.data().username}?`)) {
+            await updateDoc(doc(db, "users", docSnap.id), { approved: true });
+          }
+        }
+        alert("Admin approvals updated.");
+      } catch (err) {
+        alert("Error approving admins: " + err.message);
+      }
+    };
+
+    document.getElementById("reviewCandidatesBtn").onclick = async () => {
+      try {
+        const q = query(collection(db, "users"), where("role", "==", "candidate"), where("approved", "==", false));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) {
+          alert("No pending candidates to approve.");
+          return;
+        }
+        for (const docSnap of snapshot.docs) {
+          if (confirm(`Approve candidate ${docSnap.data().username}?`)) {
+            await updateDoc(doc(db, "users", docSnap.id), { approved: true });
+          }
+        }
+        alert("Candidate approvals updated.");
+      } catch (err) {
+        alert("Error approving candidates: " + err.message);
+      }
+    };
+
+    document.getElementById("addAdminBtn").onclick = async () => {
+      const email = prompt("Enter admin email:");
+      const password = prompt("Enter password:");
+      const username = prompt("Enter username:");
+
+      if (!email || !password || !username) {
+        alert("All fields are required.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+
+        await addDoc(collection(db, "users"), {
+          uid,
+          username,
+          email,
+          role: "admin",
+          approved: true
+        });
+
+        alert("Admin added successfully!");
+      } catch (error) {
+        alert("Error: " + error.message);
+      }
+    };
+
+    document.getElementById("addCandidateBtn").onclick = async () => {
+      const email = prompt("Enter candidate email:");
+      const password = prompt("Enter password:");
+      const username = prompt("Enter username:");
+
+      if (!email || !password || !username) {
+        alert("All fields are required.");
+        return;
+      }
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const uid = userCredential.user.uid;
+
+        await addDoc(collection(db, "users"), {
+          uid,
+          username,
+          email,
+          role: "candidate",
+          approved: false
+        });
+
+        alert("Candidate added successfully!");
+      } catch (error) {
+        alert("Error: " + error.message);
+      }
+    };
+
+    document.getElementById("logoutBtn").onclick = async () => {
+      await signOut(auth);
+      localStorage.removeItem("currentUser");
+      window.location.href = "index.html";
+    };
+  </script>
+</body>
+</html>

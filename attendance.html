@@ -1,0 +1,507 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MPGI Attendance System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* Neon glowing dotted background */
+    body {
+      font-family: 'Orbitron', sans-serif;
+      background-color: #000;
+      background-image: radial-gradient(circle, #0ff 2px, transparent 3px);
+      background-size: 20px 20px;
+      color: white;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: neonGlow 3s ease-in-out infinite alternate;
+    }
+    @keyframes neonGlow {
+      0% {
+        filter: drop-shadow(0 0 3px #0ff);
+      }
+      100% {
+        filter: drop-shadow(0 0 8px #0ff);
+      }
+    }
+    .container {
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 1000px;
+      width: 100%;
+      box-shadow: 0 0 20px #0ff;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      color: #00ffff;
+      margin-bottom: 10px;
+    }
+    img.logo {
+      display: block;
+      margin: 0 auto 20px auto;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #0ff;
+    }
+    select, input, button {
+      display: block;
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 1rem;
+      background: rgba(0,255,255,0.1);
+      color: white;
+      box-shadow: 0 0 5px #0ff inset;
+      transition: background 0.3s ease;
+    }
+    select:hover, input:hover, button:hover {
+      background: rgba(0,255,255,0.25);
+      cursor: pointer;
+    }
+    button {
+      background: #00ffff;
+      color: #000;
+      font-weight: bold;
+      box-shadow: 0 0 15px #0ff;
+    }
+    .btn-logout {
+      background: crimson !important;
+      margin-top: 20px;
+      box-shadow: 0 0 15px crimson !important;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.1);
+      margin-top: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #0ff;
+      text-align: center;
+    }
+    th {
+      background: rgba(0, 255, 255, 0.3);
+      font-weight: bold;
+    }
+    .neon-text {
+      text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+    a.forgot-pass {
+      color: #0ff;
+      cursor: pointer;
+      text-decoration: underline;
+      display: block;
+      text-align: right;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+    }
+    /* Scroll for tables if too large */
+    #dashboard, #facultyTable {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app"></div>
+  <script>
+    (() => {
+      const app = document.getElementById('app');
+      const defaultAdmin = { email: 'admin@mpgi.com', password: '0987654321', role: 'admin' };
+      let currentUser = null;
+
+      const branchSubjects = {
+        'CSE': ['DAA', 'DLDM', 'OS', 'Python', 'AI/ML'],
+        'IT': ['Data Mining', 'Cloud Computing', 'Web Dev', 'DS', 'IOT'],
+        'ECE': ['BEE', 'Network Analysis', 'Signals & Systems', 'DSP'],
+        'EEE': ['Power Systems', 'Machines', 'Control Systems', 'EMT'],
+        'MECH': ['Thermodynamics', 'RAC', 'Machine Design', 'Fluid Mechanics'],
+        'CIVIL': ['Structural Analysis', 'Surveying', 'Concrete Technology', 'Geo-Tech']
+      };
+
+      function loadUsers() {
+        return JSON.parse(localStorage.getItem('users') || '[]');
+      }
+
+      function saveUsers(users) {
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+
+      function loadAttendance() {
+        return JSON.parse(localStorage.getItem('attendance') || '{}');
+      }
+
+      function saveAttendance(data) {
+        localStorage.setItem('attendance', JSON.stringify(data));
+      }
+
+      function exportToCSV(attendanceData) {
+        const rows = [['Date', 'Email', 'Subject', 'Status']];
+        Object.entries(attendanceData).forEach(([date, list]) => {
+          list.forEach(entry => {
+            rows.push([date, entry.email, entry.subject, entry.status]);
+          });
+        });
+        let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "attendance_report.csv");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+
+      // Password reset simulation (alerts)
+      function forgotPassword(email) {
+        const users = loadUsers();
+        if (email === defaultAdmin.email) {
+          alert('Admin password reset not supported. Contact IT.');
+          return;
+        }
+        const user = users.find(u => u.email === email);
+        if (user) {
+          alert(`Password reset link sent to ${email} (simulated).`);
+        } else {
+          alert('Email not registered.');
+        }
+      }
+
+      function renderLoginRegister(isLogin = true) {
+        app.innerHTML = `
+          <img src="assets/logo.png" alt="MPGI Logo" class="logo" />
+          <h1 class="neon-text">${isLogin ? 'Login' : 'Register'}</h1>
+          <form id="auth-form">
+            <select name="role" id="role">
+              <option value="student">Student</option>
+              <option value="faculty">Faculty</option>
+              <option value="admin">Admin</option>
+            </select>
+            <input type="email" name="email" placeholder="Email" required autocomplete="username" />
+            <input type="password" name="password" placeholder="Password" required autocomplete="${isLogin ? 'current-password' : 'new-password'}" />
+            ${!isLogin ? `
+              <input type="password" name="confirm" placeholder="Confirm Password" required autocomplete="new-password" />
+              <select name="branch" id="branch" required>
+                <option value="" disabled selected>Select Branch</option>
+                ${Object.keys(branchSubjects).map(b => `<option value="${b}">${b}</option>`).join('')}
+              </select>
+            ` : ''}
+            <button type="submit">${isLogin ? 'Login' : 'Register'}</button>
+          </form>
+          ${isLogin ? '<a class="forgot-pass" id="forgot-pass-link">Forgot Password?</a>' : ''}
+          <p style="text-align:center;cursor:pointer;color:#0ff;" id="toggle">${isLogin ? 'New user? Register here' : 'Have an account? Login here'}</p>
+        `;
+        document.getElementById('toggle').onclick = () => renderLoginRegister(!isLogin);
+        if(isLogin){
+          document.getElementById('forgot-pass-link').onclick = () => {
+            const emailPrompt = prompt("Enter your registered email for password reset:");
+            if(emailPrompt) forgotPassword(emailPrompt.trim());
+          };
+        }
+
+        document.getElementById('auth-form').onsubmit = (e) => {
+          e.preventDefault();
+          const form = e.target;
+          const role = form.role.value;
+          const email = form.email.value.trim().toLowerCase();
+          const password = form.password.value.trim();
+          if (isLogin) {
+            if (role === 'admin') {
+              if (email === defaultAdmin.email && password === defaultAdmin.password) {
+                currentUser = { email, role };
+                renderDashboard();
+              } else alert('Invalid admin credentials');
+            } else {
+              const users = loadUsers();
+              const user = users.find(u => u.email === email && u.password === password && u.role === role);
+              if (user) {
+                if (!user.approved) return alert('Your registration is pending admin approval.');
+                currentUser = user;
+                renderDashboard();
+              } else alert('Login failed: check your credentials or approval status.');
+            }
+          } else {
+            const confirm = form.confirm.value.trim();
+            const branch = form.branch.value;
+            if (!branch) return alert('Please select branch');
+            if (password !== confirm) return alert('Passwords do not match');
+            if (role === 'admin') return alert('Admin cannot self-register.');
+            const users = loadUsers();
+            if (users.some(u => u.email === email)) return alert('User already exists');
+            // Extra student PRN length check
+            if(role === 'student' && (email.length < 5 || branch.length < 1)) return alert('Invalid email or branch.');
+            users.push({ email, password, role, branch, approved: false, attendance: [] });
+            saveUsers(users);
+            alert('Registration successful! Wait for admin approval.');
+            renderLoginRegister(true);
+          }
+        };
+      }
+
+      function renderDashboard() {
+        if (!currentUser) return renderLoginRegister();
+        const { email, role, branch } = currentUser;
+        app.innerHTML = `
+          <h1 class="neon-text">Welcome, ${role.toUpperCase()}${branch ? ' - ' + branch : ''}</h1>
+          <div class="controls">
+            ${role !== 'student' ? '<button id="export-btn">Export Attendance CSV</button>' : ''}
+            <button class="btn-logout" id="logout-btn">Logout</button>
+          </div>
+          <div id="dashboard"></div>
+        `;
+        document.getElementById('logout-btn').onclick = () => {
+          currentUser = null;
+          location.reload();
+        };
+        if(role !== 'student'){
+          document.getElementById('export-btn').onclick = () => {
+            exportToCSV(loadAttendance());
+          };
+        }
+        const dash = document.getElementById('dashboard');
+
+        if (role === 'student') {
+          // Show attendance marking UI & status table
+          dash.innerHTML = `
+            <h3>Mark Attendance</h3>
+            <form id="mark-attendance-form">
+              <label for="subject">Subject:</label>
+              <select id="subject" required>
+                ${branchSubjects[branch].map(sub => `<option value="${sub}">${sub}</option>`).join('')}
+              </select>
+              <button type="submit">Mark Attendance for Today</button>
+            </form>
+            <h3>Your Attendance Status</h3>
+            <div id="student-attendance-table"></div>
+          `;
+          const attendance = loadAttendance();
+          renderStudentAttendanceTable();
+
+          document.getElementById('mark-attendance-form').onsubmit = e => {
+            e.preventDefault();
+            const subject = document.getElementById('subject').value;
+            const today = new Date().toISOString().slice(0, 10);
+            // Save attendance with status "Pending"
+            const att = loadAttendance();
+            if(!att[today]) att[today] = [];
+            // Check if student already marked today for that subject
+            const exists = att[today].some(entry => entry.email === email && entry.subject === subject);
+            if(exists){
+              alert("You have already marked attendance for this subject today.");
+              return;
+            }
+            att[today].push({ email, subject, status: 'Pending' });
+            saveAttendance(att);
+            alert("Attendance marked and pending faculty approval.");
+            renderStudentAttendanceTable();
+          };
+
+          function renderStudentAttendanceTable(){
+            const att = loadAttendance();
+            let rows = '';
+            Object.entries(att).forEach(([date, list]) => {
+              list.forEach(entry => {
+                if(entry.email === email){
+                  rows += `<tr>
+                    <td>${date}</td>
+                    <td>${entry.subject}</td>
+                    <td>${entry.status}</td>
+                  </tr>`;
+                }
+              });
+            });
+            if(!rows) rows = '<tr><td colspan="3">No attendance marked yet.</td></tr>';
+            document.getElementById('student-attendance-table').innerHTML = `
+              <table>
+                <thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          }
+
+        } else if (role === 'faculty') {
+          // Show all pending attendance for approval for this faculty's branch subjects
+          dash.innerHTML = `<h3>Pending Attendance Approvals</h3>
+            <div id="facultyTable"></div>
+          `;
+
+          renderFacultyTable();
+
+          function renderFacultyTable(){
+            const att = loadAttendance();
+            let rows = '';
+            Object.entries(att).forEach(([date, list]) => {
+              list.forEach((entry, i) => {
+                // faculty sees pending attendance for subjects in their branch
+                if(entry.status === 'Pending' && branchSubjects[branch].includes(entry.subject)){
+                  rows += `<tr data-date="${date}" data-index="${i}">
+                    <td>${date}</td>
+                    <td>${entry.email}</td>
+                    <td>${entry.subject}</td>
+                    <td>
+                      <button class="approve-btn">Approve</button>
+                      <button class="reject-btn">Reject</button>
+                    </td>
+                  </tr>`;
+                }
+              });
+            });
+            if(!rows) rows = `<tr><td colspan="4">No pending attendance to approve.</td></tr>`;
+            document.getElementById('facultyTable').innerHTML = `
+              <table>
+                <thead><tr><th>Date</th><th>Student Email</th><th>Subject</th><th>Actions</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+
+            // Add event listeners
+            document.querySelectorAll('.approve-btn').forEach(btn => {
+              btn.onclick = (e) => {
+                const tr = e.target.closest('tr');
+                const date = tr.getAttribute('data-date');
+                const idx = parseInt(tr.getAttribute('data-index'));
+                const att = loadAttendance();
+                att[date][idx].status = 'Approved';
+                saveAttendance(att);
+                alert('Attendance approved!');
+                renderFacultyTable();
+              };
+            });
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+              btn.onclick = (e) => {
+                const tr = e.target.closest('tr');
+                const date = tr.getAttribute('data-date');
+                const idx = parseInt(tr.getAttribute('data-index'));
+                const att = loadAttendance();
+                att[date][idx].status = 'Rejected';
+                saveAttendance(att);
+                alert('Attendance rejected!');
+                renderFacultyTable();
+              };
+            });
+          }
+
+        } else if (role === 'admin') {
+          // Show all users pending approval, plus control to approve/reject registrations
+          dash.innerHTML = `
+            <h3>User Registration Approvals</h3>
+            <div id="user-approval"></div>
+            <h3>Manage Users</h3>
+            <div id="all-users"></div>
+          `;
+          renderUserApprovals();
+          renderAllUsers();
+
+          function renderUserApprovals(){
+            const users = loadUsers();
+            const pendingUsers = users.filter(u => !u.approved);
+            if(pendingUsers.length === 0){
+              document.getElementById('user-approval').innerHTML = '<p>No pending registrations.</p>';
+              return;
+            }
+            let rows = '';
+            pendingUsers.forEach((u, i) => {
+              rows += `<tr data-index="${i}">
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.branch || '-'}</td>
+                <td>
+                  <button class="approve-user">Approve</button>
+                  <button class="reject-user">Reject</button>
+                </td>
+              </tr>`;
+            });
+            document.getElementById('user-approval').innerHTML = `
+              <table>
+                <thead><tr><th>Email</th><th>Role</th><th>Branch</th><th>Actions</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+
+            document.querySelectorAll('.approve-user').forEach(btn => {
+              btn.onclick = (e) => {
+                const tr = e.target.closest('tr');
+                const index = parseInt(tr.getAttribute('data-index'));
+                let users = loadUsers();
+                const userIndex = users.findIndex(u => !u.approved);
+                if(userIndex >= 0){
+                  users[userIndex].approved = true;
+                  saveUsers(users);
+                  alert('User approved!');
+                  renderUserApprovals();
+                  renderAllUsers();
+                }
+              };
+            });
+
+            document.querySelectorAll('.reject-user').forEach(btn => {
+              btn.onclick = (e) => {
+                const tr = e.target.closest('tr');
+                const index = parseInt(tr.getAttribute('data-index'));
+                let users = loadUsers();
+                const userIndex = users.findIndex(u => !u.approved);
+                if(userIndex >= 0){
+                  users.splice(userIndex,1);
+                  saveUsers(users);
+                  alert('User rejected and removed!');
+                  renderUserApprovals();
+                  renderAllUsers();
+                }
+              };
+            });
+          }
+
+          function renderAllUsers(){
+            const users = loadUsers();
+            if(users.length === 0){
+              document.getElementById('all-users').innerHTML = '<p>No users registered.</p>';
+              return;
+            }
+            let rows = '';
+            users.forEach(u => {
+              rows += `<tr>
+                <td>${u.email}</td>
+                <td>${u.role}</td>
+                <td>${u.branch || '-'}</td>
+                <td>${u.approved ? 'Approved' : 'Pending'}</td>
+              </tr>`;
+            });
+            document.getElementById('all-users').innerHTML = `
+              <table>
+                <thead><tr><th>Email</th><th>Role</th><th>Branch</th><th>Status</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            `;
+          }
+        }
+      }
+
+      renderLoginRegister();
+    })();
+  </script>
+</body>
+</html>

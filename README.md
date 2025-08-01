@@ -48,8 +48,7 @@ This project showcases who I am, what I’ve worked on, and how to connect with 
 ### ✅ Tata & Tesco  
 *10 months of hands-on professional exposure.*
 
-### ✅ CodeClause (Web Developer Intern)  
-*Built projects like Calculator and Calendar during internship.*
+### 
 
 
 ## 📂 Projects
